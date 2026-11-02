@@ -30,7 +30,10 @@ def main():
     os.makedirs(args.out, exist_ok=True)
 
     with sync_playwright() as pw:
-        b = pw.chromium.launch(headless=True)
+        try:
+            b = pw.chromium.launch(headless=True, channel="chrome")  # 优先系统 Chrome，省 150MB 下载
+        except Exception:
+            b = pw.chromium.launch(headless=True)  # 无系统 Chrome 时用 playwright 自带（需 playwright install chromium）
         page = b.new_page(viewport={"width": 390, "height": 844})  # 手机竖屏
         errors, logs = [], []
         page.on("console", lambda m: (errors if m.type == "error" else logs).append(m.text[:200]))

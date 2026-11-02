@@ -28,7 +28,7 @@ python pack.py <工具根目录> 输出.zip
 # 3. 一键链：build(可选) → scan → pack → 体积清单
 python release.py <工具根目录>     # 目录下有 build.mjs 会先 node build.mjs
 
-# 4. 无头终验：手机竖屏加载 + 截图 + console 收集（需 pip install playwright）
+# 4. 无头终验：手机竖屏加载 + 截图 + console 收集（需 pip install playwright，优先用系统 Chrome）
 python verify.py http://127.0.0.1:8080/index.html home 195,700
 ```
 
@@ -39,7 +39,7 @@ python verify.py http://127.0.0.1:8080/index.html home 195,700
 | `scan.py` | 五禁令（fetch/XHR/WebSocket/SSE/eval/new Function）+ CSP（内联 script/行内事件/iframe）+ ES2017 语法（`?.` `??` ESM）+ 外部 URL + 文件白名单 | 无 |
 | `pack.py` | 只装 `index.html + js/ + assets/ + css/`，正斜杠条目，音频格式拦截，回读验证 | 无 |
 | `release.py` | build（存在 build.mjs 才跑）→ scan → pack → 体积清单（assets >4MB 提醒压缩） | 无 |
-| `verify.py` | 无头 Chromium 390×844 加载、按坐标点击、截图、console error 收集 | playwright |
+| `verify.py` | 无头 Chromium 390×844 加载、按坐标点击、截图、console error 收集 | playwright（优先系统 Chrome，无则 `playwright install chromium`） |
 
 ## 立场声明
 
