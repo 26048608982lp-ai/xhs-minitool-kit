@@ -16,6 +16,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 ALLOWED_EXT = {".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".woff", ".woff2", ".json"}
 INCLUDE_TOP = ["index.html"]
 INCLUDE_DIRS = ["js", "assets", "css"]
+# 平台 zip 白名单不含音频（实测拒收 mp3）：pack 会跳过这些文件不进包。
+# 音频是 BGM base64 管线的合法源原料（构建期内嵌进 JS），故此处 WARN 提示而非 FAIL。
+EXCLUDE_EXT = (".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac")
 
 
 def collect(root):
@@ -36,13 +39,16 @@ def collect(root):
 
 
 def scan(root):
-    issues, checked = [], 0
+    issues, warns, checked = [], [], 0
     if not os.path.isfile(os.path.join(root, "index.html")):
         issues.append("FATAL: index.html 不存在于工具根目录")
     for rel in collect(root):
         fn = os.path.basename(rel)
         ext = os.path.splitext(fn)[1].lower()
         fp = os.path.join(root, rel)
+        if ext in EXCLUDE_EXT:
+            warns.append(f"AUDIO_SKIP: {rel} 不会进包（平台拒收音频）——若为 BGM/音效源料，确认已 base64 内嵌进 JS")
+            continue
         if ext not in ALLOWED_EXT:
             issues.append(f"WHITELIST: {rel} 扩展名 {ext} 不在白名单")
             continue
@@ -79,7 +85,7 @@ def scan(root):
                     for i, line in enumerate(text.splitlines(), 1):
                         if re.search(pat, line):
                             issues.append(f"{name}: {rel}:{i} {line.strip()[:90]}")
-    return issues, checked
+    return issues, warns, checked
 
 
 def main():
@@ -88,8 +94,10 @@ def main():
     args = ap.parse_args()
 
     root = args.tool_dir.rstrip("/\\")
-    issues, checked = scan(root)
+    issues, warns, checked = scan(root)
     print(f"扫描目录: {root}（文本文件 {checked} 个）")
+    for w in warns:
+        print("  WARN " + w)
     if not issues:
         print("RESULT: PASS — 无违规项")
         sys.exit(0)
