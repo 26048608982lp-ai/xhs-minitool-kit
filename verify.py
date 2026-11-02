@@ -9,7 +9,6 @@
 import argparse
 import os
 import sys
-import time
 
 sys.stdout.reconfigure(encoding="utf-8")
 from playwright.sync_api import sync_playwright
