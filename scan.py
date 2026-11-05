@@ -38,6 +38,47 @@ def collect(root):
     return files
 
 
+def strip_comments(lines):
+    """剥行注释/块注释（字符串感知），返回代码部分行列表——语法级检查用"""
+    out, in_block = [], False
+    for line in lines:
+        res, i, n, in_str = [], 0, len(line), None
+        while i < n:
+            c = line[i]
+            if in_block:
+                if line.startswith("*/", i):
+                    in_block = False
+                    i += 2
+                else:
+                    i += 1
+                continue
+            if in_str:
+                res.append(c)
+                if c == "\\" and i + 1 < n:
+                    res.append(line[i + 1])
+                    i += 2
+                    continue
+                if c == in_str:
+                    in_str = None
+                i += 1
+                continue
+            if c in ('"', "'"):
+                in_str = c
+                res.append(c)
+                i += 1
+                continue
+            if line.startswith("//", i):
+                break
+            if line.startswith("/*", i):
+                in_block = True
+                i += 2
+                continue
+            res.append(c)
+            i += 1
+        out.append("".join(res))
+    return out
+
+
 def scan(root):
     issues, warns, checked = [], [], 0
     if not os.path.isfile(os.path.join(root, "index.html")):
@@ -59,6 +100,7 @@ def scan(root):
             except Exception as e:
                 issues.append(f"READ_ERR: {rel} {e}")
                 continue
+            code_lines = strip_comments(text.splitlines())
             if ext == ".html":
                 for m in re.finditer(r"<script(?![^>]*\bsrc=)[^>]*>", text, re.I):
                     issues.append(f"INLINE_SCRIPT: {rel} 内联 script 标签")
@@ -82,7 +124,10 @@ def scan(root):
                     (r"^\s*export\s+(default|const|let|var|function|class|\{)", "ESM_EXPORT"),
                     (r"https?://(?!127\.0\.0\.1|localhost)[\w.-]+", "EXTERNAL_URL"),
                 ]:
-                    for i, line in enumerate(text.splitlines(), 1):
+                    # 语法级检查（可选链/空值合并/外部 URL）用剥注释后的行——
+                    # 注释里的 ?? / ?. 字样与注释里的 URL 不构成运行时问题（误报源）
+                    lines = code_lines if name in ("OPT_CHAIN", "NULLISH", "EXTERNAL_URL") else text.splitlines()
+                    for i, line in enumerate(lines, 1):
                         if re.search(pat, line):
                             issues.append(f"{name}: {rel}:{i} {line.strip()[:90]}")
     return issues, warns, checked
