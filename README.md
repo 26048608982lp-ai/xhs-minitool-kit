@@ -40,6 +40,18 @@ python verify.py http://127.0.0.1:8080/index.html home 195,700
 | `pack.py` | 只装 `index.html + js/ + assets/ + css/`，正斜杠条目，音频格式拦截，回读验证 | 无 |
 | `release.py` | build（存在 build.mjs 才跑）→ scan → pack → 体积清单（assets >4MB 提醒压缩） | 无 |
 | `verify.py` | 无头 Chromium 390×844 加载、按坐标点击、截图、console error 收集 | playwright（优先系统 Chrome，无则 `playwright install chromium`） |
+| `sync-shared.py` | 跨仓共享模块同步器：本仓 `shared/`（真源）↔ 各业务仓 `_shared/` 副本，pull / --push 回灌，hash 摘要打印 | 无 |
+
+## shared/ — 跨仓共享运行时模块（真源，2026-11-05 起）
+
+`shared/` 存放多仓共用的运行时公共模块（xhs-bridge / cloud-kit / share-kit / asset-loader），真源唯一母本；消费方（`D:\games\RedNoteGame`、`D:\miniprograms\RedNoteMiniTool`）的 `_shared/` 是构建期副本，由各仓 `_tools/sync-shared.py`（本仓脚本的同名副本）维护同步。规则与清单见 [`shared/README.md`](shared/README.md)。
+
+```bash
+# 改共享模块的正确姿势（在任一业务仓改 _shared/ 后）：
+python _tools/sync-shared.py <改动仓绝对路径> --push    # 回灌真源
+python _tools/sync-shared.py <另一仓绝对路径>           # 消费仓拉取
+```
+
 
 ## 立场声明
 
