@@ -48,7 +48,7 @@ python verify.py http://127.0.0.1:8080/index.html home 195,700
 
 ## shared/ — 跨仓共享运行时模块（真源，2026-11-05 起）
 
-`shared/` 存放多仓共用的运行时公共模块（xhs-bridge / cloud-kit / share-kit / asset-loader），真源唯一母本；消费方（`D:\games\RedNoteGame`、`D:\miniprograms\RedNoteMiniTool`）的 `_shared/` 是构建期副本，由各仓 `_tools/sync-shared.py`（本仓脚本的同名副本）维护同步。规则与清单见 [`shared/README.md`](shared/README.md)。
+`shared/` 存放多仓共用的运行时公共模块（跨形态平台层：xhs-bridge / cloud-kit / share-kit / asset-loader；小程序线引擎件：page-router / wx-api-shim / wxml-runtime / ui-kit，2026-11-09 上提），真源唯一母本；消费方（`D:\games\RedNoteGame`、`D:\miniprograms\RedNoteMiniTool`）的 `_shared/` 是构建期副本，由各仓 `_tools/sync-shared.py`（本仓脚本的同名副本）维护同步。规则与清单见 [`shared/README.md`](shared/README.md)。
 
 ```bash
 # 改共享模块的正确姿势（在任一业务仓改 _shared/ 后）：

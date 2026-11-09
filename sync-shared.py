@@ -21,7 +21,11 @@ from pathlib import Path
 KIT_ROOT = Path(r"D:\dev\xhs-minitool-kit")
 SHARED_SRC = KIT_ROOT / "shared"
 # 共享清单（真源 ↔ 业务仓 _shared 同名直拷）
-SHARED_FILES = ["xhs-bridge.js", "cloud-kit.js", "share-kit.js", "asset-loader.js"]
+# 前 4 件=跨形态平台层（游戏/小程序两线共用）；后 4 件=小程序线引擎件（2026-11-09 上提真源，RedNoteGame 不消费）
+SHARED_FILES = [
+    "xhs-bridge.js", "cloud-kit.js", "share-kit.js", "asset-loader.js",
+    "page-router.js", "wx-api-shim.js", "wxml-runtime.js", "ui-kit.js",
+]
 
 
 def sha256(p: Path) -> str:
