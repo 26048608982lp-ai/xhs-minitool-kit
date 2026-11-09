@@ -16,6 +16,10 @@
 
 官方文档：https://miniapp-sandbox.xiaohongshu.com/minitool/doc
 
+## preview-kit（本地预览壳，2026-11-09 起）
+
+除合规四件套外的 dev 工具件：机型档位模拟预览壳（两栏+固定视口 scale 一屏+调参桥+数值摘要卡+截图分形态 canvas/html2canvas）。单份真源，业务仓 dev.mjs 经 `/_kit/` 映射直读——接入步骤见 [preview-kit/README.md](preview-kit/README.md)。
+
 ## 快速开始
 
 ```bash
