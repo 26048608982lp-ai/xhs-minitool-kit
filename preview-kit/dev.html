@@ -64,7 +64,14 @@
     .diff-row button { margin-right: 4px; margin-bottom: 4px; }
     .card .note { opacity: .5; font-size: 11px; margin-top: 6px; }
     .card .wide { width: 100%; margin-top: 8px; padding: 5px; }
-    /* config 数值面板 */
+    /* config 数值面板（摘要卡=关键参数默认视图；全量树折叠降级） */
+    #cfg-summary { margin-bottom: 10px; }
+    #cfg-summary .sum-row { display: flex; align-items: baseline; gap: 6px; padding: 4px 0; border-bottom: 1px solid #26282f; font-size: 12px; }
+    #cfg-summary .sum-row:last-child { border-bottom: none; }
+    #cfg-summary .sum-domain { font-weight: 600; color: #9fc3ff; width: 58px; flex: none; }
+    #cfg-summary .sum-entries { display: flex; gap: 4px 12px; flex-wrap: wrap; }
+    #cfg-summary .sum-entry { color: #9a9da8; }
+    #cfg-summary .sum-entry b { color: #e8b74a; font-weight: 600; }
     #cfg-search { width: 100%; background: #14151a; color: #e8e8e8; border: 1px solid #3a3d47; border-radius: 6px; padding: 6px 8px; font: inherit; margin-bottom: 10px; }
     #cfg-list details { margin-bottom: 6px; }
     #cfg-list summary { cursor: pointer; color: #b9bcc6; font-size: 12px; padding: 3px 0; }
@@ -144,8 +151,11 @@
       </div>
     </div>
     <div class="panel" id="panel-config" hidden>
-      <input id="cfg-search" type="search" placeholder="搜索配置路径或值…">
-      <div id="cfg-list"><div class="cfg-empty">载入中…</div></div>
+      <div id="cfg-summary"><div class="cfg-empty">载入中…</div></div>
+      <input id="cfg-search" type="search" placeholder="搜索完整配置路径或值…">
+      <details id="cfg-full"><summary style="cursor:pointer;color:#9a9da8;font-size:12px;margin-bottom:8px">完整配置树（全量，折叠）</summary>
+        <div id="cfg-list"><div class="cfg-empty">载入中…</div></div>
+      </details>
     </div>
   </aside>
 </main>

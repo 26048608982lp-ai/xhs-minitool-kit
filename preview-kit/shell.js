@@ -201,9 +201,16 @@ var TITLE = QS.get('title') || '预览台';
     }
   }
 
-  // ── 数值面板：config/*.json 只读树（flatten 路径+值，支持搜索过滤；业务仓无 config/ → 显示不存在提示） ──
+  // ── 数值面板：① 关键参数摘要卡（真源=config/schema.json 的 x-summary 白名单，借鉴 aigamedesign SUMMARY_FIELDS 模式：
+  //     dot path 深取值（数字段=数组索引）+ 人性化中文 label + format 渲染 + 值缺失自动隐藏条目）
+  //              ② 完整配置树（全量 flatten，折叠降级+搜索） ──
   var CFG_FILES = ['cosmetics', 'customers', 'economy', 'game', 'products', 'progression'];
-  var cfgRows = null; // [{file, path, value}]
+  var DOMAIN_META = { // 域显示名与图标（仅展示层；白名单在游戏侧 schema）
+    economy: ['💰', '经济'], progression: ['📈', '节奏'], customers: ['👥', '客群'],
+    products: ['🧾', '商品'], game: ['🏷️', '品牌'], cosmetics: ['🎨', '装扮']
+  };
+  var cfgRows = null; // [{file, path, value}] 全量
+  var cfgJson = null; // {file: json} 摘要取值用
   function flatten(obj, prefix, file, out) {
     Object.keys(obj).forEach(function (k) {
       var p = prefix ? prefix + '.' + k : k;
@@ -212,28 +219,73 @@ var TITLE = QS.get('title') || '预览台';
       else out.push({ file: file, path: p, value: v });
     });
   }
+  function getVal(obj, path) { // "EASY_GOALS.0.targetRevenue" —— 数字段按数组索引
+    return path.split('.').reduce(function (acc, key) {
+      return acc == null ? undefined : acc[key];
+    }, obj);
+  }
+  function fmtVal(v, format) {
+    if (v == null) return '';
+    switch (format) {
+      case 'percent': return Math.round(v * 100) + '%';
+      case 'multiplier': return v + 'x';
+      case 'currency': return '￥' + v;
+      case 'seconds': return v + 's';
+      default: return String(v);
+    }
+  }
+  function renderSummary(summary) {
+    var box = document.getElementById('cfg-summary');
+    if (!summary || !Object.keys(summary).length) {
+      box.innerHTML = '<div class="cfg-empty">本工具未声明关键参数（config/schema.json 无 x-summary）</div>';
+      return;
+    }
+    var html = '';
+    Object.keys(summary).forEach(function (domain) {
+      var meta = DOMAIN_META[domain] || ['📄', domain];
+      var root = cfgJson[domain]; // domain 键=域文件名，path 相对该文件根
+      var entries = summary[domain].map(function (f) {
+        var raw = root ? getVal(root, f.path) : undefined;
+        if (raw == null) return null; // 值缺失自动隐藏条目（不显示空行）
+        return '<span class="sum-entry">' + esc(f.label) + ' <b>' + esc(fmtVal(raw, f.format)) + '</b></span>';
+      }).filter(Boolean);
+      if (!entries.length) return;
+      html += '<div class="sum-row"><span class="sum-domain">' + meta[0] + ' ' + meta[1] + '</span><span class="sum-entries">' + entries.join('') + '</span></div>';
+    });
+    box.innerHTML = html || '<div class="cfg-empty">关键参数条目均缺失</div>';
+  }
   function loadConfig() {
-    if (cfgRows) { renderConfig(''); return; }
-    Promise.all(CFG_FILES.map(function (f) {
+    if (cfgRows) { renderConfig(document.getElementById('cfg-search').value); return; }
+    var schemaPromise = fetch('/config/schema.json').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    Promise.all([schemaPromise].concat(CFG_FILES.map(function (f) {
       return fetch('/config/' + f + '.json').then(function (r) {
         if (!r.ok) throw new Error(f + '.json ' + r.status);
         return r.json();
       }).then(function (j) {
         var out = [];
         flatten(j, '', f, out);
-        return out;
+        return { j: j, rows: out };
       });
-    })).then(function (lists) {
-      cfgRows = [].concat.apply([], lists);
+    }))).then(function (results) {
+      var schema = results[0];
+      var lists = results.slice(1);
+      cfgJson = {};
+      cfgRows = [];
+      lists.forEach(function (r, i) { cfgJson[CFG_FILES[i]] = r.j; cfgRows = cfgRows.concat(r.rows); });
+      renderSummary(schema && schema['x-summary']);
       renderConfig(document.getElementById('cfg-search').value);
     }).catch(function (e) {
+      document.getElementById('cfg-summary').innerHTML = '';
       document.getElementById('cfg-list').innerHTML =
-        '<div class="cfg-empty">本工具无 config/ 数值真源（' + e.message + '）——工具类数值显示可接入自定义关键参数面板（规划中）</div>';
+        '<div class="cfg-empty">本工具无 config/ 数值真源（' + e.message + '）——可接入自定义关键参数面板（schema x-summary 或独立声明）</div>';
+      document.getElementById('cfg-full').style.display = 'none';
     });
   }
   function renderConfig(q) {
     var box = document.getElementById('cfg-list');
     var kw = (q || '').toLowerCase();
+    var full = document.getElementById('cfg-full');
+    if (kw) full.open = true; // 搜索时自动展开全量树
     var rows = kw ? cfgRows.filter(function (r) {
       return r.path.toLowerCase().indexOf(kw) >= 0 || String(r.value).toLowerCase().indexOf(kw) >= 0;
     }) : cfgRows;

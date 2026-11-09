@@ -31,6 +31,10 @@ vendor/html2canvas.min.js  DOM 形态截图用（仅工具类懒加载，MIT）
 - 无 `config/` → 数值面板显示「本工具无 config」提示；后续可接入自定义关键参数面板（规划中，借鉴 aigamedesign 键白名单摘要模式）
 - 截图自动走 html2canvas 分支（shell.js 检测 iframe 内无 canvas 时懒加载 vendor）
 
+## 数值显示（关键参数摘要）
+
+数值 tab 默认显示**关键参数摘要卡**：白名单真源在业务仓 `config/schema.json` 顶层 `x-summary` 字段（`{域名: [{path, label, format}]}`，path 相对该域文件根、数字段=数组索引；format ∈ percent/multiplier/currency/seconds/plain）。值缺失的条目自动隐藏；完整 flatten 树折叠降级（搜索时自动展开）。业务仓无 schema/x-summary 时摘要区显示提示、树照常。此模式借鉴 aigamedesign 项目 SUMMARY_FIELDS 键白名单提取器。
+
 ## 状态与坐标约定
 
 - 档位存 `localStorage.__dev_profile`（壳与 iframe 经它解耦通信）
