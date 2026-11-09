@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<!-- dev.html — 预览壳 v2 真源版（preview-kit 单份参数化；业务仓经 dev.mjs 的 /_kit/ 映射直读本文件，无副本）
+     参数化：URL query ?title=<品牌名>&game=<id>（title 填充标题与顶栏品牌，game 用于截图文件名）
+     路径约定：本文件由业务仓 dev.mjs 静态服务挂在 /_kit/ 下 → 同目录资源相对路径可达（profiles/shell/vendor）；
+              游戏/工具本体与 config 在业务仓 serve 根 → 用绝对路径 /game-dev.html、/config/
+     预留：素材（ark-image 生图）/ 关卡（level-forge）/ 经济（simulate-economy）/ 清存档 / 性能 面板位已留
+     工具类（无 canvas DOM 页面）兼容：截图自动走 html2canvas 懒加载分支（见 shell.js shot()） -->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>预览台</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; background: #1e1f24; color: #e8e8e8; font: 13px/1.5 system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+    button {
+      background: #2c2e36; color: #e8e8e8; border: 1px solid #3a3d47; border-radius: 6px;
+      padding: 4px 10px; cursor: pointer; font: inherit;
+    }
+    button:hover:not(:disabled) { background: #3a3d47; }
+    button.active { background: #2b5fb0; border-color: #4a7fd4; }
+    button:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ── 顶栏通栏 ── */
+    header { padding: 8px 14px; background: #14151a; border-bottom: 1px solid #2c2e36; flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    header .brand { font-weight: 600; color: #9fc3ff; margin-right: 4px; }
+    header .sep { width: 1px; height: 20px; background: #2c2e36; margin: 0 4px; }
+    header .spacer { flex: 1; }
+    #zoom-label { color: #9a9da8; font-size: 12px; min-width: 52px; text-align: right; }
+    .custom { padding: 8px 14px; background: #191a20; border-bottom: 1px solid #2c2e36; display: none; gap: 6px; flex-wrap: wrap; align-items: center; flex: none; }
+    .custom.open { display: flex; }
+    .custom label { color: #9a9da8; font-size: 12px; }
+    .custom input {
+      width: 56px; background: #14151a; color: #e8e8e8; border: 1px solid #3a3d47;
+      border-radius: 4px; padding: 4px 6px; font: inherit;
+    }
+
+    /* ── 主区：左视口 + 右编辑区 ── */
+    main { flex: 1; display: flex; min-height: 0; }
+    #stage { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    #frame-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 16px; }
+    /* scale 机制：#holder 定尺寸=框尺寸×scale 提供布局占位并居中；.phone transform 缩放（iframe 内部逻辑分辨率不变） */
+    #holder { position: relative; flex: none; }
+    .phone {
+      position: absolute; top: 0; left: 0;
+      background: #000; border-radius: 18px; padding: 10px;
+      box-shadow: 0 0 0 2px #3a3d47, 0 12px 40px rgba(0,0,0,.5);
+      transform-origin: top left;
+    }
+    iframe { display: block; border: 0; border-radius: 10px; background: #000; }
+    #statusbar { flex: none; padding: 6px 14px; color: #9a9da8; font-size: 12px; border-top: 1px solid #2c2e36; background: #14151a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── 编辑区 ── */
+    #editor { width: 320px; flex: none; border-left: 1px solid #2c2e36; background: #191a20; display: flex; flex-direction: column; min-height: 0; }
+    #tabs { display: flex; gap: 4px; padding: 8px 10px 0; flex: none; flex-wrap: wrap; }
+    #tabs button { border-radius: 6px 6px 0 0; border-bottom: none; padding: 5px 12px; font-size: 12px; }
+    .panel { flex: 1; overflow: auto; padding: 12px; min-height: 0; }
+    .panel[hidden] { display: none; }
+    .card { background: #1e1f24; border: 1px solid #2c2e36; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+    .card h3 { margin: 0 0 8px; font-size: 12px; color: #9fc3ff; font-weight: 600; }
+    .card label { display: block; margin: 8px 0 2px; color: #b9bcc6; font-size: 12px; }
+    .card input[type=range] { width: 100%; }
+    .card output { color: #e8b74a; }
+    .diff-row button { margin-right: 4px; margin-bottom: 4px; }
+    .card .note { opacity: .5; font-size: 11px; margin-top: 6px; }
+    .card .wide { width: 100%; margin-top: 8px; padding: 5px; }
+    /* config 数值面板 */
+    #cfg-search { width: 100%; background: #14151a; color: #e8e8e8; border: 1px solid #3a3d47; border-radius: 6px; padding: 6px 8px; font: inherit; margin-bottom: 10px; }
+    #cfg-list details { margin-bottom: 6px; }
+    #cfg-list summary { cursor: pointer; color: #b9bcc6; font-size: 12px; padding: 3px 0; }
+    #cfg-list summary b { color: #9fc3ff; }
+    #cfg-list summary .cnt { color: #6a6d78; font-weight: 400; }
+    .cfg-table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: Consolas, monospace; margin: 4px 0 8px; }
+    .cfg-table td { padding: 2px 6px; border-top: 1px solid #26282f; vertical-align: top; }
+    .cfg-table td.p { color: #8ab4f8; word-break: break-all; }
+    .cfg-table td.v { color: #e8b74a; word-break: break-all; }
+    .cfg-empty { color: #6a6d78; font-size: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <span class="brand">预览台</span>
+  <span class="sep"></span>
+  <div class="row" id="profiles" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  <button id="btn-custom">自定义…</button>
+  <span id="zoom-label">100%</span>
+  <span class="spacer"></span>
+  <button id="btn-reload">重载</button>
+  <button id="btn-shot" title="截取游戏画面（原始分辨率 PNG 下载；DOM 工具自动走 html2canvas）">截图</button>
+  <button disabled title="预留：清空游戏 localStorage/sessionStorage 存档">清存档</button>
+  <button disabled title="预留：FPS/内存性能面板">性能</button>
+</header>
+
+<div class="custom" id="custom">
+  <label>w <input id="c-w" type="number"></label>
+  <label>h <input id="c-h" type="number"></label>
+  <label>dpr <input id="c-dpr" type="number" step="0.5"></label>
+  <label>状态栏 <input id="c-statusBar" type="number"></label>
+  <label>按钮底 <input id="c-menuBottom" type="number"></label>
+  <label>home条 <input id="c-safeBottom" type="number"></label>
+  <button id="c-apply">应用自定义档</button>
+</div>
+
+<main>
+  <section id="stage">
+    <div id="frame-wrap">
+      <div id="holder">
+        <div class="phone"><iframe id="frame" src="/game-dev.html" title="game"></iframe></div>
+      </div>
+    </div>
+    <div id="statusbar">载入中…</div>
+  </section>
+
+  <aside id="editor">
+    <nav id="tabs">
+      <button data-tab="tuning" class="active">调参</button>
+      <button data-tab="config">数值</button>
+      <button disabled title="预留：AI 素材生成（ark-image 面板位）">素材</button>
+      <button disabled title="预留：关卡种子编辑（level-forge 面板位）">关卡</button>
+      <button disabled title="预留：经济模拟可视化（simulate-economy 面板位）">经济</button>
+    </nav>
+    <div class="panel" id="panel-tuning">
+      <div class="card">
+        <h3>难度</h3>
+        <div class="diff-row" id="tun-diff"></div>
+        <div class="note">切换后自动重载生效（仅游戏类接入 tuning 桥时可用）</div>
+      </div>
+      <div class="card">
+        <h3>每日目标</h3>
+        <label>目标倍率 <output id="o-target">1.00</output>x</label>
+        <input id="r-target" type="range" min="0.5" max="2" step="0.05" value="1">
+        <div class="note">重开当日生效</div>
+      </div>
+      <div class="card">
+        <h3>客群节奏</h3>
+        <label>出客间隔倍率 <output id="o-spawn">1.00</output>x</label>
+        <input id="r-spawn" type="range" min="0.5" max="2" step="0.05" value="1">
+        <div class="note">重开当日生效</div>
+      </div>
+      <div class="card">
+        <h3>会话</h3>
+        <button class="wide" id="tun-restart">重开生效</button>
+        <div class="note">调参存 sessionStorage（__dev_tuning），reload 后仍生效；不进 zip</div>
+      </div>
+    </div>
+    <div class="panel" id="panel-config" hidden>
+      <input id="cfg-search" type="search" placeholder="搜索配置路径或值…">
+      <div id="cfg-list"><div class="cfg-empty">载入中…</div></div>
+    </div>
+  </aside>
+</main>
+
+<script src="profiles.js"></script>
+<script src="shell.js"></script>
+</body>
+</html>
