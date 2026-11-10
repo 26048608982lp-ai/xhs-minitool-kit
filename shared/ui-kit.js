@@ -5,7 +5,13 @@
 var UiKit = (function (global) {
   'use strict';
 
-  var Z = { toast: 9000, modal: 9100, sheet: 9100, loading: 9200 };
+  // 🔴 z 阶梯必须高于业务弹窗层（2026-11-10 真机"无响应"第二层根因）：源 app 的
+  // showModal/showToast 是微信原生层，永远在页面弹窗之上；源 wxss 弹窗遮罩统一
+  // var(--z-overlay)=10000（app.wxss 阶梯：float 1000 < overlay 10000 < overlay-top 10100），
+  // 本层旧值 9000~9200 全被压在下面——页面弹窗打开时调 showConfirm（模板应用等
+  // 弹窗内确认流）确认框被遮罩盖住 = 用户可见的"点了没反应"。
+  // 对齐微信语义：原生反馈层恒置顶 → 全部升到 overlay-top 之上。
+  var Z = { toast: 11000, modal: 11100, sheet: 11100, loading: 11200 };
 
   function el(tag, cls, text) {
     var e = global.document.createElement(tag);

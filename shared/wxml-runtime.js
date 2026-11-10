@@ -235,6 +235,12 @@
   // 收集容器内的绑定（不递归进结构指令的模板——模板在实例化时单独收集）
   function collectBinds(root) {
     var binds = [];
+    // 🔴 根元素自身的属性绑定必须收集（2026-11-10 真机拒审级缺陷）：wx:for/wx:if 克隆根的
+    // class/style/data-* 插值全靠这里——此前 walk 从 firstChild 起，克隆根属性永远保持字面量
+    // （template-picker 行 data-id="{{item.id}}" 原样进 DOM → 事件参数传垃圾值 → 点行无响应；
+    //  全源扫出 22 处同病：统计页图表条 6 处、编辑弹窗快捷单位 chips、三主 tab 列表行等）。
+    // 文本（后代节点）正常渲染造成"弹窗 OK"假象，console 零告警——九层防线全穿透的隐形缺陷。
+    if (root.nodeType === 1 && root.attributes) { collectAttrs(root, binds); }
     walk(root, binds, null);
     return binds;
 
@@ -354,7 +360,11 @@
       return;
     }
     if (name === 'value') {
-      if (el.value != value) el.value = value == null ? '' : value; // 宽松比较：避免 '1'!==1 每帧覆写
+      var sv = value == null ? '' : toStr(value);
+      if (el.value != value) el.value = sv; // 宽松比较：避免 '1'!==1 每帧覆写
+      // 属性同步：只写 property 会让 value="{{...}}" 字面量永久残留 DOM 属性上
+      // （与 collectBinds 根属性遗漏同家族；首启静态解析的 3 条 number 告警来自转换器层面，另案）
+      if (el.getAttribute('value') !== sv) el.setAttribute('value', sv);
       return;
     }
     if (name === 'checked' || name === 'selected') { el[name] = !!value; return; }

@@ -203,12 +203,17 @@ var PageRouter = (function (global) {
       + '.pr-badge{position:absolute;top:2px;right:50%;margin-right:-26px;min-width:16px;height:16px;'
       + 'line-height:16px;padding:0 4px;border-radius:8px;background:#ff2442;color:#fff;font-size:10px;'
       + 'font-style:normal;text-align:center;}'
-      // 自绘导航栏：高度 = 安全区 safeTop（容器 HUD/状态栏避让）+ 44 标题行，真值由 applyNavInset 覆写。
+      // 自绘导航栏：高度 = 安全区 safeTop（= 容器 HUD 下缘+8），真值由 applyNavInset 覆写。
+      // 🔴 标题直接画进 HUD 行中段（bottom 锚定，与返回/分享按钮同行对齐），不再额外预留 44px
+      // 标题带——2026-11-10 用户真机反馈"HUD 中间区域可以用，顶部预留太多"（旧版 safeTop+44
+      // 在 HUD 下方多铺一条自绘标题栏，浪费 44px 内容区且与 HUD 视觉割裂）。
+      // pointer-events:none：标题纯展示，不挡容器 HUD 按钮的命中。
       // fixed 钉视口（文档可程序滚动时 absolute 会跟着滚走）；z-index 8999 低于覆盖层梯队（--z-overlay 10000）
-      + '.pr-navbar{position:fixed;left:0;right:0;top:0;height:var(--nav-h,88px);z-index:8999;'
-      + 'background:#FF8C42;display:flex;align-items:flex-end;justify-content:center;box-sizing:border-box;}'
-      + '.pr-navbar-title{width:100%;height:44px;line-height:44px;text-align:center;color:#fff;'
-      + 'font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
+      + '.pr-navbar{position:fixed;left:0;right:0;top:0;height:var(--nav-h,64px);z-index:8999;'
+      + 'background:#FF8C42;box-sizing:border-box;}'
+      + '.pr-navbar-title{position:absolute;left:0;right:0;bottom:4px;height:38px;line-height:38px;'
+      + 'text-align:center;color:#fff;font-size:17px;font-weight:500;pointer-events:none;'
+      + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}';
     doc().head.appendChild(style);
   }
 
@@ -234,12 +239,12 @@ var PageRouter = (function (global) {
     navEl.firstChild.textContent = title;
   }
   // 安全区真值注入：XhsBridge.layout.safeTop（= max(状态栏, 原生按钮 bottom+8)）就绪后覆写 --nav-h；
-  // 无 SDK/本地环境走 bridge fallback 44 → 88px，与 cssBase 默认一致
+  // 🔴 nav-h = safeTop（不再 +44 标题带，标题画进 HUD 中段——2026-11-10 收缩顶部预留）
   function applyNavInset(tries) {
     var xb = global.XhsBridge;
     var st = xb && xb.layout && Number(xb.layout.safeTop);
     if (st > 0) {
-      doc().documentElement.style.setProperty('--nav-h', (st + 44) + 'px');
+      doc().documentElement.style.setProperty('--nav-h', st + 'px');
       return;
     }
     if (tries < 25) { global.setTimeout(function () { applyNavInset(tries + 1); }, 200); }
